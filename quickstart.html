@@ -1,0 +1,272 @@
+<!-- 
+	Load the browser at http://localhost:8000/quickstart.html
+-->
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Gmail API Test</title>
+    <meta charset='utf-8' />
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+  </head>
+  </head>
+  <body>
+    <p>Gmail API Test</p>
+
+    <!--Add buttons to initiate auth sequence and sign out-->
+    <button id="authorize-button" class="btn btn-primary">Authorize</button>
+    <button id="signout-button" class="btn btn-primary">Sign Out</button>
+    <div id="content"> 
+    	<pre id="labels_content"></pre>
+    	<div id="mail_content">
+    		<table id="mainTable" class="table table-striped table-inbox hidden">
+        	<thead>
+          	<tr>
+            	<th>From</th>
+            	<th>Subject</th>
+            	<th>Date/Time</th>
+          	</tr>
+        	</thead>
+        	<tbody></tbody>
+      		</table>
+    	</div>
+
+    	 <button id="nextPage-button" class="btn btn-primary">Next Page</button>
+    </div>
+
+    <script type="text/javascript">
+
+      // Client ID and API key from the Developer Console
+      var CLIENT_ID = '811127360619-t8phd0jjkmv2a0c47mvisecaj7ekh4gp.apps.googleusercontent.com';
+
+      // Array of API discovery doc URLs for APIs used by the quickstart
+      var DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest"];
+
+      // Authorization scopes required by the API; multiple scopes can be
+      // included, separated by spaces.
+      var SCOPES = 'https://www.googleapis.com/auth/gmail.readonly';
+
+      var authorizeButton = document.getElementById('authorize-button');
+      var signoutButton = document.getElementById('signout-button');
+      var nextpageButton = document.getElementById('nextPage-button');
+
+      var pageToken = null;
+
+      /**
+       *  On load, called to load the auth2 library and API client library.
+       */
+      function handleClientLoad() {
+        gapi.load('client:auth2', initClient);
+      }
+
+      /**
+       *  Initializes the API client library and sets up sign-in state
+       *  listeners.
+       */
+      function initClient() {
+        gapi.client.init({
+          discoveryDocs: DISCOVERY_DOCS,
+          clientId: CLIENT_ID,
+          scope: SCOPES
+        }).then(function () {
+          // Listen for sign-in state changes.
+          gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+
+          // Handle the initial sign-in state.
+          updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+          authorizeButton.onclick = handleAuthClick;
+          signoutButton.onclick = handleSignoutClick;
+          nextpageButton.onclick = handleNextPageClick;
+        });
+      }
+
+      /**
+       *  Called when the signed in status changes, to update the UI
+       *  appropriately. After a sign-in, the API is called.
+       */
+      function updateSigninStatus(isSignedIn) {
+        if (isSignedIn) {
+          authorizeButton.style.display = 'none';
+          signoutButton.style.display = 'block';
+          listLabels();
+
+          // Execute the loadInboxMail function
+          loadInboxMail();
+        } else {
+          authorizeButton.style.display = 'block';
+          signoutButton.style.display = 'none';
+        }
+      }
+
+      /**
+       *  Sign in the user upon button click.
+       */
+      function handleAuthClick(event) {
+        gapi.auth2.getAuthInstance().signIn();
+      }
+
+      /**
+       *  Sign out the user upon button click.
+       */
+      function handleSignoutClick(event) {
+        gapi.auth2.getAuthInstance().signOut();
+      }
+
+	  /*
+		Load next 10 mails upon button click
+      */
+      function handleNextPageClick() {
+      	loadInboxMail();
+      }
+
+      /**
+       * Append a pre element to the body containing the given message
+       * as its text node. Used to display the results of the API call.
+       *
+       * @param {string} message Text to be placed in pre element.
+       */
+      function appendPre(message) {
+        var pre = document.getElementById('labels_content');
+        var textContent = document.createTextNode(message + '\n');
+        pre.appendChild(textContent);
+      }
+
+      /* NOT NEED
+		Append mails title in the "mail content" filed
+      */
+      function appendMailTitle(message) {
+        var pre2 = document.getElementById('mail_content');
+        var textContent = document.createTextNode(message + '\n');
+        pre2.appendChild(textContent);
+      }
+
+      /**
+       * Print all Labels in the authorized user's inbox. If no labels
+       * are found an appropriate message is printed.
+       */
+      function listLabels() {
+        gapi.client.gmail.users.labels.list({
+          'userId': 'me'
+        }).then(function(response) {
+          var labels = response.result.labels;
+          appendPre('Labels:');
+
+          if (labels && labels.length > 0) {
+            for (i = 0; i < labels.length; i++) {
+              var label = labels[i];
+              appendPre(label.name)
+            }
+          } else {
+            appendPre('No Labels found.');
+          }
+        });
+      }
+
+      /*
+		The function for loading Inbox mails
+      */
+      function loadInboxMail() {
+  		var request = gapi.client.gmail.users.messages.list({
+    	'userId': 'me',  // The special value me can be used to indicate the authenticated user.
+    	'labelIds': 'INBOX',
+    	'maxResults': 10,
+    	'pageToken': pageToken
+  	  	});
+  		request.execute(function(response) {
+  			// console.log(response);
+
+  			/*
+				Identify if the next-page button is needed
+      		*/
+    		if(response.hasOwnProperty('nextPageToken')) {
+        		pageToken = response['nextPageToken'];
+        		// console.log(pageToken);
+        		nextpageButton.style.display = 'block';
+    		} else {
+    			nextpageButton.disabled = true;
+    		}
+			
+  	  		$.each(response.messages, function(){
+      			var messageRequest = gapi.client.gmail.users.messages.get({
+        		'userId': 'me',
+        		'id': this.id
+      		});
+      		messageRequest.execute(appendMessageRow);
+      	});	
+  	   });
+	  }
+
+	  /*
+		The function for displaying what we get while loading mails
+      */
+	  function appendMessageRow(message) {
+	  	console.log(message.payload);
+
+	  	/* Filter the "From" filed from the JSON of message's header */
+	  	var filteredObj_from = message.payload.headers.find(function(item, i){
+  			if(item.name === 'From'){
+    		index = i;
+    		return i;
+  			}
+		});
+
+	  	/* Filter the "Subject" filed from the JSON of message's header */
+		var filteredObj_subject = message.payload.headers.find(function(item, i){
+  			if(item.name === 'Subject'){
+    		index = i;
+    		return i;
+  			}
+		});
+
+		/* Filter the "Date" filed from the JSON of message's header */
+		var filteredObj_date = message.payload.headers.find(function(item, i){
+  			if(item.name === 'Date'){
+    		index = i;
+    		return i;
+  			}
+		});
+
+		/* Get the "Data" filed from the object of message's body */
+		if( message.payload.body.hasOwnProperty('data')){
+			var raw_data =  atob(message.payload.body.data.replace(/_/g, '/').replace(/-/g,'+'));
+			raw_data = decodeURIComponent(escape(raw_data));
+		} else {
+			var raw_data = "This mail's format is not in text format."
+		}
+		console.log(raw_data);
+		// console.log(index, filteredObj);
+		// console.log(JSON.stringify(filteredObj));
+
+  		$('.table-inbox tbody').append(
+    		'<tr id="labelTr">\
+      		<td>'+ filteredObj_from.value.toString() +'</td>\
+      		<td>'+ filteredObj_subject.value.toString() +'</td>\
+      		<td>'+ filteredObj_date.value.toString() +'</td>\
+    		</tr>'
+  		);
+
+  		document.getElementById("labelTr").setAttribute("id", raw_data);
+	  }
+
+	 //  function getSender(message){
+	 //  	var filteredObj = message.payload.headers.find(function(item, i){
+  // 			if(item.name === 'From'){
+  //   		index = i;
+  //   		return i;
+  // 			}
+		// });
+		// console.log(index, filteredObj);
+	 //  }
+
+    </script>
+    
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.11.0/umd/popper.min.js" integrity="sha384-b/U6ypiBEHpOf/4+1nzFpr53nxSS+GLCkfwBdFNTxtclqqenISfwAzpKaMNFNmj4" crossorigin="anonymous"></script>
+ 	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/js/bootstrap.min.js" integrity="sha384-h0AbiXch4ZDo7tp9hKZ4TsHbi047NrKGLO3SEJAg45jXxnGIfYzk4Si90RDIqNm1" crossorigin="anonymous"></script>
+ 	<script src="tableRowClick.js"></script>
+    <script async defer src="https://apis.google.com/js/api.js"
+      onload="this.onload=function(){};handleClientLoad()"
+      onreadystatechange="if (this.readyState === 'complete') this.onload()">
+    </script>
+  </body>
+</html>

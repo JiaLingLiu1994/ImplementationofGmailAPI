@@ -1,0 +1,20 @@
+#info {
+	margin-left: 10px;
+}
+
+#authorize-button, #signout-button {
+	margin-left: 25px;
+}
+
+.col-md-2 {
+	margin-left: 30px;
+	margin-top: 5px;
+}
+
+.col-md-10 {
+	margin-left: -50px;
+}
+
+#labels_content {
+	display: inline-block;
+}

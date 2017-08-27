@@ -9,15 +9,19 @@
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
   </head>
-  </head>
   <body>
     <p>Gmail API Test</p>
 
-    <!--Add buttons to initiate auth sequence and sign out-->
+    <!-- Add buttons to initiate auth sequence and sign out -->
     <button id="authorize-button" class="btn btn-primary">Authorize</button>
     <button id="signout-button" class="btn btn-primary">Sign Out</button>
+
     <div id="content"> 
+
+    	<!-- Labels part is belong to Google API quickstart Doc -->
     	<pre id="labels_content"></pre>
+
+    	<!-- List maills -->
     	<div id="mail_content">
     		<table id="mainTable" class="table table-striped table-inbox hidden">
         	<thead>
@@ -31,7 +35,8 @@
       		</table>
     	</div>
 
-    	 <button id="nextPage-button" class="btn btn-primary">Next Page</button>
+    	<!-- Add button to load more mails -->
+    	<button id="nextPage-button" class="btn btn-primary">Load More</button>
     </div>
 
     <script type="text/javascript">
@@ -44,13 +49,13 @@
 
       // Authorization scopes required by the API; multiple scopes can be
       // included, separated by spaces.
-      var SCOPES = 'https://www.googleapis.com/auth/gmail.readonly';
+      var SCOPES = 'https://mail.google.com/';		/* Modify the defult value of scopes https://www.googleapis.com/auth/gmail.readonly */
 
       var authorizeButton = document.getElementById('authorize-button');
       var signoutButton = document.getElementById('signout-button');
       var nextpageButton = document.getElementById('nextPage-button');
 
-      var pageToken = null;
+      var pageToken = null;		/* Variable for pageToken to store the nextPageToken from response */
 
       /**
        *  On load, called to load the auth2 library and API client library.
@@ -90,13 +95,41 @@
           signoutButton.style.display = 'block';
           listLabels();
 
-          // Execute the loadInboxMail function
+          // Execute the loadInboxMail function to list mails while the user first login
           loadInboxMail();
         } else {
           authorizeButton.style.display = 'block';
           signoutButton.style.display = 'none';
         }
       }
+
+      /* The function for loading Inbox mails */
+      function loadInboxMail() {
+  		var request = gapi.client.gmail.users.messages.list({
+    		'userId': 'me',		 // The special value me can be used to indicate the authenticated user.
+    		'labelIds': 'INBOX',
+    		'maxResults': 10,
+    		'pageToken': pageToken
+  	  	});
+  		request.execute(function(response) {
+    		if (response.hasOwnProperty('nextPageToken')) {		// Identify if the next-page button is needed 
+        		pageToken = response['nextPageToken'];
+        		nextpageButton.style.display = 'block';
+    		} else {
+    			nextpageButton.disabled = true;
+    		}
+			
+  	  		$.each(response.messages, function(){
+      			var messageRequest = gapi.client.gmail.users.messages.get({
+        		'userId': 'me',
+        		'id': this.id
+      		});
+
+      		// After messages are gotten by the messages.get request, appeneded to the form on html page
+      		messageRequest.execute(appendMessageRow);
+      	});	
+  	   });
+	  }
 
       /**
        *  Sign in the user upon button click.
@@ -112,9 +145,7 @@
         gapi.auth2.getAuthInstance().signOut();
       }
 
-	  /*
-		Load next 10 mails upon button click
-      */
+	  /* Load next 10 mails upon button click */
       function handleNextPageClick() {
       	loadInboxMail();
       }
@@ -129,15 +160,6 @@
         var pre = document.getElementById('labels_content');
         var textContent = document.createTextNode(message + '\n');
         pre.appendChild(textContent);
-      }
-
-      /* NOT NEED
-		Append mails title in the "mail content" filed
-      */
-      function appendMailTitle(message) {
-        var pre2 = document.getElementById('mail_content');
-        var textContent = document.createTextNode(message + '\n');
-        pre2.appendChild(textContent);
       }
 
       /**
@@ -162,47 +184,11 @@
         });
       }
 
-      /*
-		The function for loading Inbox mails
-      */
-      function loadInboxMail() {
-  		var request = gapi.client.gmail.users.messages.list({
-    	'userId': 'me',  // The special value me can be used to indicate the authenticated user.
-    	'labelIds': 'INBOX',
-    	'maxResults': 10,
-    	'pageToken': pageToken
-  	  	});
-  		request.execute(function(response) {
-  			// console.log(response);
-
-  			/*
-				Identify if the next-page button is needed
-      		*/
-    		if(response.hasOwnProperty('nextPageToken')) {
-        		pageToken = response['nextPageToken'];
-        		// console.log(pageToken);
-        		nextpageButton.style.display = 'block';
-    		} else {
-    			nextpageButton.disabled = true;
-    		}
-			
-  	  		$.each(response.messages, function(){
-      			var messageRequest = gapi.client.gmail.users.messages.get({
-        		'userId': 'me',
-        		'id': this.id
-      		});
-      		messageRequest.execute(appendMessageRow);
-      	});	
-  	   });
-	  }
-
 	  /*
 		The function for displaying what we get while loading mails
       */
 	  function appendMessageRow(message) {
-	  	console.log(message.payload);
-
-	  	/* Filter the "From" filed from the JSON of message's header */
+	  	// Filter the "From" filed from the JSON of message's header 
 	  	var filteredObj_from = message.payload.headers.find(function(item, i){
   			if(item.name === 'From'){
     		index = i;
@@ -210,32 +196,21 @@
   			}
 		});
 
-	  	/* Filter the "Subject" filed from the JSON of message's header */
+	  	// Filter the "Subject" filed from the JSON of message's header 
 		var filteredObj_subject = message.payload.headers.find(function(item, i){
-  			if(item.name === 'Subject'){
+  			if (item.name === 'Subject'){
     		index = i;
     		return i;
   			}
 		});
 
-		/* Filter the "Date" filed from the JSON of message's header */
+		// Filter the "Date" filed from the JSON of message's header 
 		var filteredObj_date = message.payload.headers.find(function(item, i){
-  			if(item.name === 'Date'){
+  			if (item.name === 'Date'){
     		index = i;
     		return i;
   			}
 		});
-
-		/* Get the "Data" filed from the object of message's body */
-		if( message.payload.body.hasOwnProperty('data')){
-			var raw_data =  atob(message.payload.body.data.replace(/_/g, '/').replace(/-/g,'+'));
-			raw_data = decodeURIComponent(escape(raw_data));
-		} else {
-			var raw_data = "This mail's format is not in text format."
-		}
-		console.log(raw_data);
-		// console.log(index, filteredObj);
-		// console.log(JSON.stringify(filteredObj));
 
   		$('.table-inbox tbody').append(
     		'<tr id="labelTr">\
@@ -245,19 +220,42 @@
     		</tr>'
   		);
 
-  		document.getElementById("labelTr").setAttribute("id", raw_data);
+  		// The font weight of unread mail is bold 
+  		if (message.labelIds.indexOf('UNREAD') != -1) {		// If indexOf function returen -1, it means not found
+  			document.getElementById('labelTr').style.fontWeight = 'bold';
+  		}
+ 		
+ 		// Set tr element id as (row)message id
+  		document.getElementById("labelTr").setAttribute("id", message.id);
 	  }
 
-	 //  function getSender(message){
-	 //  	var filteredObj = message.payload.headers.find(function(item, i){
-  // 			if(item.name === 'From'){
-  //   		index = i;
-  //   		return i;
-  // 			}
-		// });
-		// console.log(index, filteredObj);
-	 //  }
+	  // The function for getting mail content in raw format by messageId
+	  function getMessage(mail_id) {
+		var request = gapi.client.gmail.users.messages.get({
+    		'id': mail_id,  
+    		'userId': 'me',
+    		'format': 'full'		//Return message in FULL format
+  	  	});
+  		request.execute(function(response) { 
+  			if (response.labelIds.indexOf('UNREAD') != -1) {
+  				console.log('remove unread tag');
+  				
+  				// Remove the UNREAD label from this message(mail) since this function is executed after the mail is clicked
+  				request = gapi.client.gmail.users.messages.modify({
+    				'userId': 'me',
+    				'id': mail_id,
+        			'addLabelIds': null,
+        			'removeLabelIds': 'UNREAD'
+  	  			});
+  	  			request.execute(function(response) { 
 
+  	  			});
+
+  			}
+  			console.log(response);
+  			alert(response.snippet);		// The value of snippet, which is one of key, is the content of mail
+  		});
+	  }
     </script>
     
     <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>

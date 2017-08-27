@@ -251,21 +251,19 @@
   	  	});
   		request.execute(function(response) { 
   			if (response.labelIds.indexOf('UNREAD') != -1) {
-  				console.log('remove unread tag');
-  				
   				// Remove the UNREAD label from this message(mail) since this function is executed after the mail is clicked
+  				// Excute the Users.messages.modify request
   				request = gapi.client.gmail.users.messages.modify({
     				'userId': 'me',
     				'id': mail_id,
-        			'addLabelIds': null,
-        			'removeLabelIds': 'UNREAD'
+        			'removeLabelIds': ['UNREAD']
   	  			});
   	  			request.execute(function(response) { 
-
+  	 				document.getElementById(mail_id).style.fontWeight = 'normal';		// Set tr as unbold(normal)
   	  			});
 
   			}
-  			console.log(response);
+  			
   			alert(response.snippet);		// The value of snippet, which is one of key, is the content of mail
   		});
 	  }

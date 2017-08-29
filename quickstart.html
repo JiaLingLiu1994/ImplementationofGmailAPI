@@ -231,17 +231,19 @@
 
 		// Filter the "Date" filed from the JSON of message's header 
 		var filteredObj_date = message.payload.headers.find(function(item, i){
-  			if (item.name === 'Date'){
+  			if (item.name === 'Received'){
     		index = i;
     		return i;
   			}
 		});
 
+		var dataInSameFormat = filteredObj_date.value.toString().split(';');
+
   		$('.table-inbox tbody').append(
     		'<tr id="labelTr">\
       		<td>'+ filteredObj_from.value.toString() +'</td>\
       		<td>'+ filteredObj_subject.value.toString() +'</td>\
-      		<td>'+ filteredObj_date.value.toString() +'</td>\
+      		<td>'+ dataInSameFormat[1] +'</td>\
     		</tr>'
   		);
 
@@ -266,7 +268,7 @@
   				// Remove the UNREAD label from this message(mail) since this function is executed after the mail is clicked
   				// Excute the Users.messages.modify request
   				request = gapi.client.gmail.users.messages.modify({
-    				'userId': 'me',
+    				'userId': 'me', 
     				'id': mail_id,
         			'removeLabelIds': ['UNREAD']
   	  			});
@@ -283,7 +285,7 @@
 	  }
 
 	  
-	  // Call the function repeatly in 10sec
+	  // Call the function repeatly in 5sec
 	  window.setInterval(function(){
 	  	if (signInToken) {
   			gapi.client.gmail.users.labels.get({

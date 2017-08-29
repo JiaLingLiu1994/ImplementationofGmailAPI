@@ -64,6 +64,8 @@
       var nextpageButton = document.getElementById('nextPage-button');
 
       var pageToken = null;		/* Variable for pageToken to store the nextPageToken from response */
+      var signInToken;		/* Variable for checking if the user sign in */
+      var newUnread = 0;		/* Variable for checking if need re-load mails */
 
       /**
        *  On load, called to load the auth2 library and API client library.
@@ -102,6 +104,7 @@
           authorizeButton.style.display = 'none';
           signoutButton.style.display = 'block';
           listLabels();
+          signInToken = true;
 
           // Execute the loadInboxMail function to list mails while the user first login
           loadInboxMail();
@@ -129,14 +132,22 @@
 			
   	  		$.each(response.messages, function(){
       			var messageRequest = gapi.client.gmail.users.messages.get({
-        		'userId': 'me',
-        		'id': this.id
-      		});
+        			'userId': 'me',
+        			'id': this.id
+      			});
 
       		// After messages are gotten by the messages.get request, appeneded to the form on html page
       		messageRequest.execute(appendMessageRow);
-      	});	
-  	   });
+      		});	
+  	    });
+  		
+  		gapi.client.gmail.users.labels.get({
+  				'id': 'UNREAD',
+          		'userId': 'me'
+        }).then(function(response) {
+        	newUnread = response.result.messagesUnread;
+        	console.log(newUnread);
+        });
 	  }
 
       /**
@@ -156,6 +167,7 @@
         nextpageButton.style.disabled = true;
         pre.innerHTML = '';
         pageToken = null;
+        signInToken = false;
         document.getElementById('tableContent').innerHTML = null;
       }
 
@@ -259,6 +271,8 @@
         			'removeLabelIds': ['UNREAD']
   	  			});
   	  			request.execute(function(response) { 
+  	  				newUnread --;
+  	  				console.log(newUnread);
   	 				document.getElementById(mail_id).style.fontWeight = 'normal';		// Set tr as unbold(normal)
   	  			});
 
@@ -267,6 +281,28 @@
   			alert(response.snippet);		// The value of snippet, which is one of key, is the content of mail
   		});
 	  }
+
+	  
+	  // Call the function repeatly in 10sec
+	  window.setInterval(function(){
+	  	if (signInToken) {
+  			gapi.client.gmail.users.labels.get({
+  				'id': 'UNREAD',
+          		'userId': 'me'
+        }).then(function(response) {
+          if (response.result.messagesUnread != newUnread && response.result.messagesUnread != 0) {
+          	newUnread = response.result.messagesUnread;
+          	console.log(newUnread);
+          	document.getElementById('tableContent').innerHTML = null;
+          	pageToken = null;
+          	loadInboxMail();
+          } else {
+          	console.log("not new mail");
+          }
+        });
+  		}
+	  }, 5000);
+	    
     </script>
     
     <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
